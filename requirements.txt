@@ -1,0 +1,7 @@
+# Data collection dependencies for backtesting data pipeline.
+#
+# pyarrow: Parquet read/write support (columnar storage, 5-10x smaller than CSV).
+# pandas: DataFrame operations for building and saving structured data.
+
+pyarrow
+pandas
