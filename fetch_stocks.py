@@ -75,26 +75,28 @@ def resolve_stock_security_ids(
     """
     Look up security IDs for a list of stock symbols from Dhan's instrument list.
 
-    Filters by: EXCH_ID=NSE, INSTRUMENT_TYPE=EQUITY (or similar).
+    Filters by: EXCH_ID=NSE, INSTRUMENT=EQUITY.
+    Matches on UNDERLYING_SYMBOL (Dhan's trading symbol column).
+    Falls back to SYMBOL_NAME for backward compatibility.
     Returns: dict of {symbol: security_id}.
     Prints warnings for symbols that can't be found.
     """
-    # Build a lookup: symbol_name -> security_id for NSE equity instruments.
-    symbol_to_id: Dict[str, str] = {}
+    # Build two lookups for NSE equity instruments:
+    #   1. UNDERLYING_SYMBOL -> security_id (primary, Dhan's trading symbol)
+    #   2. SYMBOL_NAME -> security_id (fallback, Dhan's display name)
+    underlying_to_id: Dict[str, str] = {}
+    symbol_name_to_id: Dict[str, str] = {}
 
     for row in instrument_rows:
         exch = (row.get("EXCH_ID") or "").upper()
-        instr = (row.get("INSTRUMENT_TYPE") or "").upper()
+        # Use INSTRUMENT column (values: "EQUITY", "OPTSTK", etc.)
+        # instead of INSTRUMENT_TYPE (values: "ES", "OP", etc.).
+        instrument = (row.get("INSTRUMENT") or "").upper()
 
         # Only look at NSE equity instruments.
-        # INSTRUMENT_TYPE can be "EQUITY" or "ES" or other variants.
         if exch != "NSE":
             continue
-        if instr not in ("EQUITY", "ES", "EQ"):
-            continue
-
-        sym = (row.get("SYMBOL_NAME") or "").strip()
-        if not sym:
+        if instrument != "EQUITY":
             continue
 
         sid = (
@@ -105,21 +107,30 @@ def resolve_stock_security_ids(
         if not sid:
             continue
 
-        # Some symbols may have multiple entries (e.g., different series).
-        # Prefer EQ series over others.
+        # Prefer EQ series over others (e.g., SM, BE series).
         series = (row.get("SERIES") or row.get("SEM_SERIES") or "").upper()
-        if sym in symbol_to_id and series != "EQ":
-            continue  # Keep the EQ series entry.
 
-        symbol_to_id[sym] = str(sid)
+        # Primary lookup: UNDERLYING_SYMBOL (e.g., "RELIANCE", "INFY").
+        underlying = (row.get("UNDERLYING_SYMBOL") or "").strip()
+        if underlying:
+            if underlying not in underlying_to_id or series == "EQ":
+                underlying_to_id[underlying] = str(sid)
 
-    # Match requested symbols.
+        # Fallback lookup: SYMBOL_NAME (e.g., "BHEL", full display names).
+        sym_name = (row.get("SYMBOL_NAME") or "").strip()
+        if sym_name:
+            if sym_name not in symbol_name_to_id or series == "EQ":
+                symbol_name_to_id[sym_name] = str(sid)
+
+    # Match requested symbols: try UNDERLYING_SYMBOL first, then SYMBOL_NAME.
     result: Dict[str, str] = {}
     missing: List[str] = []
 
     for sym in symbols:
-        if sym in symbol_to_id:
-            result[sym] = symbol_to_id[sym]
+        if sym in underlying_to_id:
+            result[sym] = underlying_to_id[sym]
+        elif sym in symbol_name_to_id:
+            result[sym] = symbol_name_to_id[sym]
         else:
             missing.append(sym)
 

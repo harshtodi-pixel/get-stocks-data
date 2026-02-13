@@ -195,7 +195,8 @@ NIFTY_100_SYMBOLS = [
     "SIEMENS",
     "SUNPHARMA",
     "TATACONSUM",
-    "TATAMOTORS",
+    "TMCV",          # Tata Motors (Commercial Vehicles), post-demerger
+    "TMPV",          # Tata Motors (Passenger Vehicles), post-demerger
     "TATAPOWER",
     "TATASTEEL",
     "TCS",
@@ -210,6 +211,6 @@ NIFTY_100_SYMBOLS = [
     "VEDL",
     "VBL",
     "WIPRO",
-    "ZOMATO",
+    "ETERNAL",       # Formerly Zomato, renamed to Eternal Ltd
     "ZYDUSLIFE",
 ]
